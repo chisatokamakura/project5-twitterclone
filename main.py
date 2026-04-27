@@ -14,17 +14,25 @@ templates = Jinja2Templates(directory='templates')
 # the route or "page" you were connecting to in Firefox
 @app.get('/', response_class=HTMLResponse)
 async def index(request: Request):
+    is_logged_in = True
     return templates.TemplateResponse(
         request=request,
-        name='index.html'
+        name='index.html',
+        context={
+            'is_logged_in': is_logged_in,
+        }
     )
     return '<i>hello</i> <b>world</b>'
 
 @app.get('/login', response_class=HTMLResponse)
 async def login(request: Request):
+    is_logged_in = True
     return templates.TemplateResponse(
         request=request,
-        name='login.html'
+        name='login.html',
+        context={
+            'is_logged_in': is_logged_in,
+        }
     )
 
 if __name__ == '__main__':

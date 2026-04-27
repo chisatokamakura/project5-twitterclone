@@ -1,0 +1,23 @@
+<html>
+    <head>
+        <title></title>
+    </head>
+    <body>
+        <h1>Twitter Clone</h1>
+        <ul>
+            <li><a href='/'>Home</a></li>
+            <li><a href='/login'>Login</a></li>
+            <li><a href='/logout'>Logout</a></li>
+            <li><a href='/create_user'>Create User</a></li>
+            <li><a href='/create_message'>Create Message</a></li>
+        </ul>
+        <hr>
+        {#
+            anything in {%%} is jinja2 code, not html
+            this is a jinja2 comment
+            this file makes changes to every page
+        #}
+        {% block content%}
+        {% endblock %}
+    </body>
+</html>

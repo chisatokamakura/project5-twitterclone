@@ -29,6 +29,7 @@ async def index(request: Request):
         
     print('row[0]=', row[0])
 
+    # return response
     return templates.TemplateResponse(
         request=request,
         name='index.html',

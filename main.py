@@ -1,5 +1,5 @@
 '''
-Starts a hello world observer.
+Starts a Twitter clone web app.
 '''
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -66,33 +66,33 @@ async def login(request: Request):
     )
 
 @app.get('/logout', response_class=HTMLResponse)
-async def login(request: Request):
+async def logout(request: Request):
     is_logged_in = False
     return templates.TemplateResponse(
         request=request,
-        name='login.html',
+        name='logout.html',
         context={
             'is_logged_in': is_logged_in,
         }
     )
 
 @app.get('/create_message', response_class=HTMLResponse)
-async def login(request: Request):
+async def create_message(request: Request):
     is_logged_in = True
     return templates.TemplateResponse(
         request=request,
-        name='login.html',
+        name='create_message.html',
         context={
             'is_logged_in': is_logged_in,
         }
     )
 
 @app.get('/create_user', response_class=HTMLResponse)
-async def login(request: Request):
+async def create_user(request: Request):
     is_logged_in = False
     return templates.TemplateResponse(
         request=request,
-        name='login.html',
+        name='create_user.html',
         context={
             'is_logged_in': is_logged_in,
         }

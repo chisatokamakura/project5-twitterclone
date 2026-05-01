@@ -3,6 +3,7 @@
 This project functions similarly to Twitter, where users can create accounts, write messages, and view a real-time user feed.
 
 This is a screenshot of the working home page.
+
 ![Home Page](homepage.png)
 
 ## Features
@@ -45,7 +46,7 @@ http://127.0.0.1:8080
 - password
 - age
 
-## Messages Table 
+### Messages Table 
 - id integer (primary key)
 - sender_id (foreign key → users.id)
 - message

@@ -1,0 +1,31 @@
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #FFFDE7;
+    margin: 20px;
+}
+
+h1, h2 {
+    color: #5A0F7A;
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+li {
+    display: inline;
+    margin-right: 15px;
+}
+
+a {
+    text-decoration: none;
+    font-weight: bold;
+    color: #5A0F7A;
+}
+
+div {
+    background-color: white;
+    padding: 10px;
+    border-radius: 8px;
+}

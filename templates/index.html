@@ -4,6 +4,16 @@
 {% block content %}
 <h2>Main Page</h2>
 
+<img src="/static/matcha.png" alt="matcha" width="200">
 
-<p>username: {{username}} </p>
+{% for message in messages %}
+    <div>
+        <p><b>{{ message.username }}</b>, age {{ message.age }}</p>
+        <p>{{ message.message }}</p>
+        <p>{{ message.created_at }}</p>
+    </div>
+    <hr>
+{% endfor %}
+
+<!--<p> username: {{username}} </p> -->
 {% endblock %}

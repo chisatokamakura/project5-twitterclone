@@ -4,3 +4,5 @@
 set -ex
 curl  -sfS http://127.0.0.1:8080/ > /dev/null # nothing printed to screen unless error
 curl  -sfS http://127.0.0.1:8080/login > /dev/null
+
+# FIXME: place integration tests testing various routes so code doesn't break

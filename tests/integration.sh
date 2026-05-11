@@ -25,6 +25,11 @@ grep -q "Create User" /tmp/create_user.html
 curl -sfS "$BASE/messages.json" -o /tmp/messages.json
 grep -q "username" /tmp/messages.json
 
+# verify message with single and double quotes exists
+sqlite3 ../twitter_clone.db \
+"SELECT COUNT(*) FROM messages WHERE message LIKE \"%'%\" AND message LIKE '%\"%';" \
+| grep -v "^0$"
+
 # failed login test
 curl -sfS "$BASE/login?username=user0&password=wrong" \
 | grep -q "Incorrect username or password"
@@ -59,6 +64,18 @@ curl -sfS -b cookies.txt --get \
 curl -sfS "$BASE/" \
 | grep -q "hellofromtest"
 
+# empty message test
+curl -sfS -b cookies.txt --get \
+--data-urlencode "message=" \
+"$BASE/create_message" \
+| grep -q "Message cannot be empty"
+
+# message too long test
+curl -sfS -b cookies.txt --get \
+--data-urlencode "message=$(python3 -c 'print("a"*1001)')" \
+"$BASE/create_message" \
+| grep -q "Message cannot exceed 1000"
+
 # markdown formatting test
 curl -sfS -b cookies.txt --get \
 --data-urlencode "message=**bold** and *italic*" \
@@ -74,6 +91,13 @@ curl -sfS "$BASE/search?query=hello" \
 
 curl -sfS "$BASE/search?query=zzznoresultszzz" \
 | grep -q "No results found"
+
+# pagination tests
+curl -sfS "$BASE/?page=1" | grep -q "← Previous"
+curl -sfS "$BASE/?page=0" | grep -vq "← Previous"
+curl -sfS "$BASE/" | grep -q "Next →"
+curl -sfS "$BASE/?page=abc" | grep -q "Twitter Clone"
+curl -sfS "$BASE/?page=-1" | grep -q "Twitter Clone"
 
 # XSS / HTML injection test
 curl -sfS -b cookies.txt --get \
@@ -116,6 +140,51 @@ curl -sfS --get \
 "$BASE/create_user" \
 | grep -q "Passwords do not match"
 
+# invalid age test
+curl -sfS --get \
+--data-urlencode "username=newuser" \
+--data-urlencode "age=abc" \
+--data-urlencode "password1=abc" \
+--data-urlencode "password2=abc" \
+"$BASE/create_user" \
+| grep -q "valid age"
+
+# invalid username characters test
+curl -sfS --get \
+--data-urlencode "username=bad user!" \
+--data-urlencode "age=20" \
+--data-urlencode "password1=abc" \
+--data-urlencode "password2=abc" \
+"$BASE/create_user" \
+| grep -q "letters, numbers, and underscores"
+
+# age out of range test
+curl -sfS --get \
+--data-urlencode "username=newuser" \
+--data-urlencode "age=999" \
+--data-urlencode "password1=abc" \
+--data-urlencode "password2=abc" \
+"$BASE/create_user" \
+| grep -q "valid age"
+
+# negative age test
+curl -sfS --get \
+--data-urlencode "username=newuser" \
+--data-urlencode "age=-1" \
+--data-urlencode "password1=abc" \
+--data-urlencode "password2=abc" \
+"$BASE/create_user" \
+| grep -q "valid age"
+
+# create user with spaces-only username
+curl -sfS --get \
+--data-urlencode "username=   " \
+--data-urlencode "age=20" \
+--data-urlencode "password1=abc" \
+--data-urlencode "password2=abc" \
+"$BASE/create_user" \
+| grep -q "Missing information"
+
 # URL should become clickable link
 curl -sfS -b cookies.txt --get \
 --data-urlencode "message=check_this_link https://example.com" \
@@ -151,13 +220,37 @@ curl -sfS -b newcookies.txt \
 "$BASE/create_message" \
 | grep -q "Create Message"
 
-# change password test
+# change password with missing fields
 curl -sfS -b newcookies.txt --get \
+--data-urlencode "old_password=abc" \
+--data-urlencode "new_password1=" \
+--data-urlencode "new_password2=" \
+"$BASE/change_password" \
+| grep -q "Missing information"
+
+# same password test
+curl -sfS -b newcookies.txt --get \
+--data-urlencode "old_password=abc" \
+--data-urlencode "new_password1=abc" \
+--data-urlencode "new_password2=abc" \
+"$BASE/change_password" \
+| grep -q "New password must be different"
+
+# spaces password test
+curl -sfS -b newcookies.txt --get \
+--data-urlencode "old_password=abc" \
+--data-urlencode "new_password1=   " \
+--data-urlencode "new_password2=   " \
+"$BASE/change_password" \
+| grep -q "Password cannot be just spaces"
+
+# change password test
+curl -sfSL -b newcookies.txt --get \
 --data-urlencode "old_password=abc" \
 --data-urlencode "new_password1=xyz" \
 --data-urlencode "new_password2=xyz" \
 "$BASE/change_password" \
-> /dev/null
+| grep -q "Password changed successfully"
 
 # verify old password no longer works
 curl -sfS \
@@ -172,6 +265,23 @@ curl -sfS -c changedcookies.txt \
 curl -sfS -b changedcookies.txt \
 "$BASE/create_message" \
 | grep -q "Create Message"
+
+# invalid message_id tests
+curl -sfSL -b changedcookies.txt \
+"$BASE/delete_message?message_id=abc" \
+| grep -q "Twitter Clone"
+
+curl -sfSL -b changedcookies.txt \
+"$BASE/edit_message?message_id=abc" \
+| grep -q "Twitter Clone"
+
+curl -sfSL -b changedcookies.txt \
+"$BASE/delete_message?message_id=999999" \
+| grep -q "Twitter Clone"
+
+curl -sfSL -b changedcookies.txt \
+"$BASE/edit_message?message_id=999999" \
+| grep -q "Twitter Clone"
 
 # create editable message
 curl -sfS -b changedcookies.txt --get \
@@ -197,33 +307,23 @@ curl -sfS "$BASE/" \
 | grep -q "Edited at"
 
 # delete message test
-curl -sfS -b changedcookies.txt \
+curl -sfSL -b changedcookies.txt \
 "$BASE/delete_message?message_id=$MESSAGE_ID" \
-> /dev/null
+| grep -q "Message deleted successfully"
 
-if curl -sfS "$BASE/" | grep -q "edited_message"; then
+if curl -sfS "$BASE/" | grep -q "editedmessage"; then
     echo "Delete message failed"
     exit 1
 fi
 
 # delete user test
-curl -sfS -b changedcookies.txt \
+curl -sfSL -b changedcookies.txt \
 "$BASE/delete_user" \
-> /dev/null
+| grep -q "Account successfully deleted"
 
 curl -sfS \
 "$BASE/login?username=test_auto_login&password=xyz" \
 | grep -q "Incorrect username or password"
-
-# pagination test
-curl -sfS "$BASE/?page=1" \
-| grep -q "Twitter Clone"
-
-curl -sfS "$BASE/?page=0" \
-| grep -q "← Previous" || true
-
-curl -sfS "$BASE/?page=1" \
-| grep -q "← Previous"
 
 # verify json endpoint returns JSON-like structure
 curl -sfS "$BASE/messages.json" \

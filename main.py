@@ -56,9 +56,18 @@ def check_credentials(request: Request):
 async def index(request: Request):
 
     # display success message after user deletes account
-    success_message = request.query_params.get('deleted_user_message')
+    success_message = (
+    request.query_params.get('success') or
+    request.query_params.get('deleted_user_message')
+    )
 
-    page = int(request.query_params.get('page', 0))
+    try:
+        page = int(request.query_params.get('page', 0))
+        page = max(0, page)
+    except ValueError:
+        page = 0
+
+    # how many rows to skip before starting to return results
     offset = page * 50
 
     # extract username from database
@@ -70,13 +79,16 @@ async def index(request: Request):
     FROM messages
     JOIN users ON messages.sender_id = users.id
     ORDER BY messages.created_at DESC, messages.id DESC
-    LIMIT 50 OFFSET ?;
+    LIMIT 51 OFFSET ?;
     """
 
     cur.execute(sql, [offset])
+    rows = cur.fetchall()
+    has_next = len(rows) > 50
+    rows = rows[:50]  # only show 50
 
     messages = []
-    for row in cur.fetchall():
+    for row in rows:
         message_text = compile_lines(str(escape(row[3])))
 
         message_text = re.sub(
@@ -104,8 +116,9 @@ async def index(request: Request):
             'is_logged_in': check_credentials(request),
             'username': check_credentials(request),
             'messages': messages,
-            'deleted_user_message': success_message,
+            'success_message': success_message,
             'page': page,
+            'has_next': has_next,
         }
     )
 
@@ -207,29 +220,34 @@ async def create_message(request: Request):
     error = None
 
     if query_message is not None:
-        con = sqlite3.connect('twitter_clone.db')
-        cur = con.cursor()
+        if not query_message.strip():
+            error = 'Message cannot be empty.'
+        elif len(query_message) > 1000:
+            error = 'Message cannot exceed 1000 characters.'
+        else:
+            con = sqlite3.connect('twitter_clone.db')
+            cur = con.cursor()
 
-        sql = """
-        SELECT id FROM users
-        WHERE username = ?;
-        """
+            sql = """
+            SELECT id FROM users
+            WHERE username = ?;
+            """
 
-        cur.execute(sql, [username])
-        row = cur.fetchone()
+            cur.execute(sql, [username])
+            row = cur.fetchone()
 
-        user_id = row[0]
+            user_id = row[0]
 
-        sql = """
-        INSERT INTO messages (sender_id, message)
-        VALUES (?, ?);
-        """
+            sql = """
+            INSERT INTO messages (sender_id, message)
+            VALUES (?, ?);
+            """
 
-        cur.execute(sql, [user_id, query_message])
-        con.commit()
-        con.close()
+            cur.execute(sql, [user_id, query_message])
+            con.commit()
+            con.close()
 
-        return RedirectResponse(url='/', status_code=302)
+            return RedirectResponse(url='/', status_code=302)
 
     return templates.TemplateResponse(
         request=request,
@@ -260,28 +278,40 @@ async def create_user(request: Request):
             error = 'Missing information.'
         elif query_password1 != query_password2:
             error = 'Passwords do not match.'
+        elif not re.match(r'^\w+$', query_username):
+            error = 'Username can only contain letters, numbers, and underscores.'
+        elif not query_password1.strip():
+            error = 'Password cannot be just spaces.'
         else:
-            con = sqlite3.connect('twitter_clone.db')
-            cur = con.cursor()
-
-            sql = """
-            INSERT INTO users (username, password, age)
-            VALUES (?, ?, ?);
-            """
-
             try:
-                cur.execute(sql, [query_username, query_password1, query_age])
-                con.commit()
+                age = int(query_age)
+                if age < 1 or age > 120:
+                    error = 'Please enter a valid age.'
+                else:
+                    con = sqlite3.connect('twitter_clone.db')
+                    cur = con.cursor()
 
-                response = RedirectResponse(url='/', status_code=302)
-                response.set_cookie(key='username', value=query_username)
-                response.set_cookie(key='password', value=query_password1)
-                con.close()
-                return response
+                    sql = """
+                    INSERT INTO users (username, password, age)
+                    VALUES (?, ?, ?);
+                    """
 
-            except sqlite3.IntegrityError:
-                error = 'That username already exists.'
-                con.close()
+                    try:
+                        cur.execute(sql, [query_username, query_password1, age])
+                        con.commit()
+
+                        response = RedirectResponse(url='/', status_code=302)
+                        response.set_cookie(key='username', value=query_username)
+                        response.set_cookie(key='password', value=query_password1)
+                        con.close()
+                        return response
+
+                    except sqlite3.IntegrityError:
+                        error = 'That username already exists.'
+                        con.close()
+
+            except ValueError:
+                error = 'Please enter a valid age.'
 
     return templates.TemplateResponse(
         request=request,
@@ -300,21 +330,30 @@ async def delete_message(request: Request):
     if not username: 
         return RedirectResponse(url='/login', status_code=302)
 
-    message_id = request.query_params.get('message_id')
+    try:
+        message_id = int(request.query_params.get('message_id'))
+    except (TypeError, ValueError):
+        return RedirectResponse(url='/', status_code=302)
 
-    if message_id is not None:
-        con = sqlite3.connect('twitter_clone.db')
-        cur = con.cursor()
+    con = sqlite3.connect('twitter_clone.db')
+    cur = con.cursor()
 
-        sql = """
-        DELETE FROM messages
-        WHERE id = ?;
-        """
-        cur.execute(sql, [message_id])
-        con.commit()
+    # verify message belongs to logged-in user
+    sql = """
+    SELECT id FROM messages 
+    WHERE id = ? AND sender_id = (SELECT id FROM users WHERE username = ?);
+    """
+    cur.execute(sql, [message_id, username])
+    if cur.fetchone() is None:
         con.close()
+        return RedirectResponse(url='/', status_code=302)
+        
+    sql = "DELETE FROM messages WHERE id = ?;"
+    cur.execute(sql, [message_id])
+    con.commit()
+    con.close()
 
-    return RedirectResponse(url='/', status_code=302)
+    return RedirectResponse(url='/?success=Message deleted successfully', status_code=302)
 
 @app.get('/edit_message', response_class=HTMLResponse)
 async def edit_message(request: Request):
@@ -323,17 +362,29 @@ async def edit_message(request: Request):
     if not username:
         return RedirectResponse(url='/login', status_code=302)
 
-    message_id = request.query_params.get('message_id')
-    new_message = request.query_params.get('message')
-
-    if message_id is None:
+    try:
+        message_id = int(request.query_params.get('message_id'))
+    except (TypeError, ValueError):
         return RedirectResponse(url='/', status_code=302)
+
+    new_message = request.query_params.get('message')
 
     con = sqlite3.connect('twitter_clone.db')
     cur = con.cursor()
 
     # update database row
     if new_message is not None:
+        # verify message belongs to logged-in user
+        sql = """
+        SELECT id FROM messages 
+        WHERE id = ? AND sender_id = (SELECT id FROM users WHERE username = ?);
+        """
+        cur.execute(sql, [message_id, username])
+        if cur.fetchone() is None:
+            con.close()
+            return RedirectResponse(url='/', status_code=302)
+
+        # update database row
         sql = """
         UPDATE messages
         SET message = ?, edited_at = current_timestamp
@@ -489,6 +540,12 @@ async def change_password(request: Request):
         elif new_password1 != new_password2:
             error = 'New passwords do not match.'
 
+        elif new_password1 == old_password:
+            error = 'New password must be different from old password.'
+
+        elif not new_password1.strip():
+            error = 'Password cannot be just spaces.'
+
         else:
             con = sqlite3.connect('twitter_clone.db')
             cur = con.cursor()
@@ -516,7 +573,7 @@ async def change_password(request: Request):
                 con.commit()
                 con.close()
 
-                response = RedirectResponse(url='/', status_code=302)
+                response = RedirectResponse(url='/?success=Password changed successfully', status_code=302)
                 response.set_cookie(key='username', value=username)
                 response.set_cookie(key='password', value=new_password1)
                 return response

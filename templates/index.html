@@ -6,8 +6,8 @@
 
 <img src="/static/matcha.png" alt="matcha" width="200">
 
-{% if deleted_user_message %}
-    <p><i><b>{{ deleted_user_message }}</b></i></p>
+{% if success_message %}
+    <p><i><b>{{ success_message }}</b></i></p>
 {% endif %}
 
 {% for message in messages %}
@@ -39,7 +39,9 @@
     {% if page > 0 %}
         <a class="action-button" href="/?page={{ page - 1 }}">← Previous</a>
     {% endif %}
-    <a class="action-button" href="/?page={{ page + 1 }}">Next →</a>
+    {% if has_next %}
+        <a class="action-button" href="/?page={{ page + 1 }}">Next →</a>
+    {% endif %}
 </div>
 
 {% endblock %}

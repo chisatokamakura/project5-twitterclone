@@ -2,4 +2,19 @@
 
 {% block content %}
 <h2>Create Message</h2>
+
+{% if error %}
+    <p>{{ error }}</p>
+{% endif %}
+
+<form action="/create_message" method="get">
+     <p>
+        Message:
+        <input type="text" name="message">
+    </p>
+
+    <p>
+        <input type="submit" value="Create Message">
+    </p>
+</form>
 {% endblock %}

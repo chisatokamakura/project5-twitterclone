@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Search Messages</h2>
+
+<form action="/search" method="get">
+    <input type="text" name="query" value="{{ query or '' }}" placeholder="Search...">
+    <input type="submit" value="Search">
+</form>
+
+{% if query and messages %}
+    <p>Results for "{{ query }}":</p>
+    {% for message in messages %}
+    <div>
+        <img src="https://robohash.org/{{ message.username }}.png"
+            alt="{{ message.username }} avatar"
+            width="60">
+        <p><b>{{ message.username }}</b>, age {{ message.age }}</p>
+        <p>{{ message.message | safe }}</p>
+        <p>{{ message.created_at }}</p>
+        {% if message.edited_at %}
+        <p><i>Edited at {{ message.edited_at }}</i></p>
+        {% endif %}
+    </div>
+    <hr>
+    {% endfor %}
+{% elif query %}
+    <p>No results found for "{{ query }}".</p>
+{% endif %}
+
+{% endblock %}

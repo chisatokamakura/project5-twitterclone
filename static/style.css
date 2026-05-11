@@ -29,3 +29,22 @@ div {
     padding: 10px;
     border-radius: 8px;
 }
+
+.edited-text {
+    font-style: italic;
+    color: #666666;
+}
+
+.action-button {
+    background-color: #e6d6ff;
+    color: #4b2e83;
+    padding: 6px 12px;
+    border-radius: 8px;
+    text-decoration: none;
+    margin-right: 8px;
+    font-size: 14px;
+}
+
+.action-button:hover {
+    background-color: #d8c2ff;
+}

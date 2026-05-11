@@ -5,6 +5,8 @@ Create a database for the Twitter project.
 
 # sqlite3 is built in python3, no need to pip install
 import sqlite3
+import random
+from datetime import datetime, timedelta
 
 # process command line arguments
 import argparse
@@ -25,18 +27,7 @@ CREATE TABLE users (
     age INTEGER
 );
 '''
-cur.execute(sql)     # cur.execute() actually runs the SQL code
-con.commit()         # "commit" means "save" in SQL terminology; not always required, but never wrong
-
-# insert some dummy data
-cur.execute("insert into users (username, password, age) values ('Trump', 'Trump', 78);")
-cur.execute('insert into users (username, password, age) values (\'Biden\', \'Biden\', 81);')
-cur.execute('''insert into users (username, password, age) values ('Evan', 'correct horse battery staple', 7);''')
-cur.execute('''insert into users (username, password, age) values ('Isaac', 'soccer', 4);''')
-cur.execute('''insert into users (username, password, age) values ('Aaron', 'guaguagua', 3);''')
-cur.execute('''insert into users (username, password, age) values ('Aurelia', '', 1);''')
-cur.execute('''insert into users (username, password, age) values ('Mike', '524euTjrWm6uK2C5iw8mC6aNgX1JI78o', 35);''')
-cur.execute('''insert into users (username, password) values ('Kristen', 'Possible-Rich-Absolute-Battle');''')
+cur.execute(sql)
 con.commit()
 
 # create the messages table
@@ -45,43 +36,48 @@ create table messages (
     id integer primary key,
     sender_id integer not null,
     message text not null,
-    created_at timestamp not null default current_timestamp
+    created_at timestamp not null default current_timestamp,
+    edited_at timestamp
     );
 '''
 cur.execute(sql)
 con.commit()
 
-# insert some dummy data
-sql = '''
-insert into messages (sender_id,message,created_at) values
-    (1, 'I''m a baby', '2021-11-14 14:30:00'),
-    (2, 'I''m a baby', '2021-11-14 14:30:00'),
-    (3, 'I''m a baby', '2021-11-14 14:33:01'),
-    (4, 'I''m a baby', '2021-11-15 14:35:45');
-'''
-cur.execute(sql)
-con.commit()
+subjects = ['I', 'We', 'They', 'My roommate', 'The professor', 'She', 'He', 'Bob', 'Mike', 'The three-headed bear', 'My dinosaur', 'Woody']
+verbs = ['love', "can't", 'hate', 'study', 'recommend', 'miss', 'use', 'find', 'slide', 'race', 'eat', 'despise', 'doodle', 'squabble', 'discombobulate']
+objects = ['SQL', 'FastAPI', 'matcha', 'Python', 'sleep', 'databases', '"double quote"', 'cert10', 'https://google.com', 'flowers', 'minions']
+punctuation = ['!', '.', '...', '?']
 
-sql='''
-insert into messages (sender_id,message,created_at) values
-    (3, 'I''m actually a toddler', '2021-11-16 14:35:45');
-'''
-cur.execute(sql)
-con.commit()
+for user_num in range(220):
+    username = f'user{user_num}'
+    password = f'password{user_num}'
+    age = random.randint(1, 100)
 
-sql='''
-insert into messages (sender_id,message,created_at) values
-    (6, 'Today in 1918, the Armistice that effectively ended WWI came into effect.', '2021-11-11 11:00:00');
-'''
-cur.execute(sql)
-con.commit()
+    cur.execute(
+        '''
+        INSERT INTO users (username, password, age)
+        VALUES (?, ?, ?);
+        ''',
+        [username, password, age]
+    )
 
-sql='''
-insert into messages (sender_id,message) values
-    (6, 'I''m an adult'),
-    (6, 'SQL is the best!!'),
-    (7, 'I''m an adult'),
-    (7, 'WTF is SQL?!  I thought you liked the snake thing.');
-'''
-cur.execute(sql)
+    user_id = cur.lastrowid
+
+    for message_num in range(220):
+
+        message = (
+            f'{random.choice(subjects)} '
+            f'{random.choice(verbs)} '
+            f'{random.choice(objects)}'
+            f'{random.choice(punctuation)} '
+        )
+
+        cur.execute(
+            '''
+            INSERT INTO messages (sender_id, message)
+            VALUES (?, ?);
+            ''',
+            [user_id, message]
+        )
+
 con.commit()

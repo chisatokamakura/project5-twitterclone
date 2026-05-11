@@ -6,13 +6,40 @@
 
 <img src="/static/matcha.png" alt="matcha" width="200">
 
+{% if deleted_user_message %}
+    <p><i><b>{{ deleted_user_message }}</b></i></p>
+{% endif %}
+
 {% for message in messages %}
     <div>
+        <img src="https://robohash.org/{{ message.username }}.png" 
+            alt="{{ message.username }} avatar" 
+            width="60">
+
         <p><b>{{ message.username }}</b>, age {{ message.age }}</p>
-        <p>{{ message.message }}</p>
+        <p>{{ message.message | safe }}</p>
         <p>{{ message.created_at }}</p>
+
+        {% if message.edited_at %}
+        <p><i>Edited at {{ message.edited_at }}</i></p>
+        {% endif %}
+
+        <a class="action-button" href="/edit_message?message_id={{ message.id }}">
+            Edit
+        </a>
+
+        <a class="action-button" href="/delete_message?message_id={{ message.id }}">
+            Delete
+        </a>
     </div>
     <hr>
 {% endfor %}
+
+<div style="display: flex; gap: 20px; margin-top: 20px;">
+    {% if page > 0 %}
+        <a class="action-button" href="/?page={{ page - 1 }}">← Previous</a>
+    {% endif %}
+    <a class="action-button" href="/?page={{ page + 1 }}">Next →</a>
+</div>
 
 {% endblock %}

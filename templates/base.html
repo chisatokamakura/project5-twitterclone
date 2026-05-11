@@ -7,9 +7,12 @@
         <h1>Twitter Clone</h1>
         <ul>
             <li><a href='/'>Home</a></li>
+            <li><a href="/search">Search</a></li>
             {% if is_logged_in %}
             <li><a href='/logout'>Logout</a></li>
             <li><a href='/create_message'>Create Message</a></li>
+            <li><a href="/change_password">Change Password</a></li>
+            <li><a href="/delete_user">Delete Account</a></li>
             {% else %}
             <li><a href='/login'>Login</a></li>
             <li><a href='/create_user'>Create User</a></li>

@@ -2,3 +2,6 @@ __pycache__
 venv
 twitter_clone.db
 .DS_Store
+cookies.txt
+newcookies.txt
+changedcookies.txt

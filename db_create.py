@@ -81,3 +81,10 @@ for user_num in range(220):
         )
 
 con.commit()
+
+# guaranteed message with both single and double quotes
+cur.execute(
+    "INSERT INTO messages (sender_id, message) VALUES (?, ?);",
+    [1, "This message has a single quote ' and a \"double quote\"."]
+)
+con.commit()

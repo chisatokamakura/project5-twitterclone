@@ -85,12 +85,33 @@ curl -sfS -b cookies.txt --get \
 curl -sfS "$BASE/" \
 | grep -q '<b>bold</b>'
 
+# unclosed markdown tag
+curl -sfS -b cookies.txt --get \
+--data-urlencode "message=**unclosed bold" \
+"$BASE/create_message" \
+> /dev/null
+
+curl -sfS "$BASE/" \
+| grep -q "unclosed bold"
+
+# malicious image markdown
+curl -sfS -b cookies.txt --get \
+--data-urlencode "message=![img](javascript:alert(1))" \
+"$BASE/create_message" \
+> /dev/null
+
+curl -sfS "$BASE/" \
+| grep -vq "javascript:alert"
+
 # search test
 curl -sfS "$BASE/search?query=hello" \
 | grep -q "hellofromtest"
 
 curl -sfS "$BASE/search?query=zzznoresultszzz" \
 | grep -q "No results found"
+
+curl -sfS "$BASE/search?query=$(python3 -c 'print("a"*1000)')" \
+| grep -q "Search"
 
 # pagination tests
 curl -sfS "$BASE/?page=1" | grep -q "← Previous"
@@ -120,6 +141,16 @@ curl -sfS "$BASE/" \
 # verify SQL injection did NOT break database
 curl -sfS \
 "$BASE/login?username=user0&password=password0" \
+> /dev/null
+
+# SQL injection via search
+curl -sfS --get \
+--data-urlencode "query='; DROP TABLE users; --" \
+"$BASE/search" \
+| grep -q "Search"
+
+# verify DB still works
+curl -sfS "$BASE/login?username=user0&password=password0" \
 > /dev/null
 
 # duplicate user test
@@ -220,6 +251,19 @@ curl -sfS -b newcookies.txt \
 "$BASE/create_message" \
 | grep -q "Create Message"
 
+# cannot delete another user's message
+OTHER_MESSAGE_ID=$(sqlite3 ../twitter_clone.db \
+"SELECT id FROM messages WHERE sender_id != (SELECT id FROM users WHERE username='test_auto_login') LIMIT 1;")
+
+curl -sfSL -b newcookies.txt \
+"$BASE/delete_message?message_id=$OTHER_MESSAGE_ID" \
+| grep -q "You can only delete your own messages"
+
+# verify message still exists
+sqlite3 ../twitter_clone.db \
+"SELECT id FROM messages WHERE id=$OTHER_MESSAGE_ID;" \
+| grep -q "$OTHER_MESSAGE_ID"
+
 # change password with missing fields
 curl -sfS -b newcookies.txt --get \
 --data-urlencode "old_password=abc" \
@@ -305,6 +349,28 @@ curl -sfS "$BASE/" \
 
 curl -sfS "$BASE/" \
 | grep -q "Edited at"
+
+# cannot edit another user's message
+OTHER_MESSAGE_ID=$(sqlite3 ../twitter_clone.db \
+"SELECT id FROM messages WHERE sender_id != (SELECT id FROM users WHERE username='test_auto_login') LIMIT 1;")
+
+curl -sfSL -b changedcookies.txt --get \
+--data-urlencode "message_id=$OTHER_MESSAGE_ID" \
+--data-urlencode "message=hacked" \
+"$BASE/edit_message" \
+| grep -q "You can only edit your own messages"
+
+# verify message was NOT changed
+sqlite3 ../twitter_clone.db \
+"SELECT message FROM messages WHERE id=$OTHER_MESSAGE_ID;" \
+| grep -vq "hacked"
+
+# empty edit message test
+curl -sfS -b changedcookies.txt --get \
+--data-urlencode "message_id=$MESSAGE_ID" \
+--data-urlencode "message=" \
+"$BASE/edit_message" \
+| grep -q "Twitter Clone"
 
 # delete message test
 curl -sfSL -b changedcookies.txt \

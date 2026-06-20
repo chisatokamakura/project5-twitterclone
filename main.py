@@ -92,7 +92,7 @@ async def index(request: Request):
         message_text = compile_lines(str(escape(row[3])))
 
         message_text = re.sub(
-            r'(https?://[^\s<>"]+)',
+            r'(?<!href=")(https?://[^\s<>"]+)',
             r'<a href="\1">\1</a>',
             message_text
         )
@@ -271,17 +271,16 @@ async def create_user(request: Request):
     if any([query_username, query_password1, query_password2, query_age]):
         if (
             not query_username or not query_username.strip()
-            or not query_password1 or not query_password1.strip()
-            or not query_password2 or not query_password2.strip()
             or not query_age or not query_age.strip()
+            or not query_password1 or not query_password2
         ):
             error = 'Missing information.'
+        elif not query_password1.strip() or not query_password2.strip():
+            error = 'Password cannot be just spaces.'
         elif query_password1 != query_password2:
             error = 'Passwords do not match.'
         elif not re.match(r'^\w+$', query_username):
             error = 'Username can only contain letters, numbers, and underscores.'
-        elif not query_password1.strip():
-            error = 'Password cannot be just spaces.'
         else:
             try:
                 age = int(query_age)
@@ -346,7 +345,7 @@ async def delete_message(request: Request):
     cur.execute(sql, [message_id, username])
     if cur.fetchone() is None:
         con.close()
-        return RedirectResponse(url='/', status_code=302)
+        return RedirectResponse(url='/?success=You can only delete your own messages.', status_code=302)
         
     sql = "DELETE FROM messages WHERE id = ?;"
     cur.execute(sql, [message_id])
@@ -374,6 +373,19 @@ async def edit_message(request: Request):
 
     # update database row
     if new_message is not None:
+        if not new_message.strip():
+            con.close()
+            return templates.TemplateResponse(
+                request=request,
+                name='edit_message.html',
+                context={
+                    'is_logged_in': username,
+                    'username': username,
+                    'message_id': message_id,
+                    'message': new_message,
+                    'error': 'Message cannot be empty.',
+                }
+            )
         # verify message belongs to logged-in user
         sql = """
         SELECT id FROM messages 
@@ -382,7 +394,7 @@ async def edit_message(request: Request):
         cur.execute(sql, [message_id, username])
         if cur.fetchone() is None:
             con.close()
-            return RedirectResponse(url='/', status_code=302)
+            return RedirectResponse(url='/?success=You can only edit your own messages.', status_code=302)
 
         # update database row
         sql = """
@@ -444,7 +456,7 @@ async def search(request: Request):
         for row in cur.fetchall():
             message_text = compile_lines(str(escape(row[3])))
             message_text = re.sub(
-                r'(https?://[^\s<>"]+)',
+                r'(?<!href=")(https?://[^\s<>"]+)',
                 r'<a href="\1">\1</a>',
                 message_text
             )
